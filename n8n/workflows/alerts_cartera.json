@@ -1,0 +1,690 @@
+{
+  "name": "Alerts Cartera",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "83360025-ecea-42a9-bee8-76ba6564e2a0",
+              "name": "=intent",
+              "value": "={{ ( () => {\n  const raw = String(\n    $json.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body\n    ?? $json.messages?.[0]?.text?.body\n    ?? ''\n  );\n\n  const t = raw\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g,'') // sin tildes\n    .replace(/\\r?\\n/g,' ')                           // quita saltos\n    .replace(/\\s+/g,' ')                             // colapsa espacios\n    .trim();\n\n  if (/\\bsaldo\\b/.test(t))  return 'saldo';\n  if (t.includes('vencid')) return 'vencidas';\n  return 'ayuda';\n})().trim()}}",
+              "type": "string"
+            },
+            {
+              "id": "6299003e-771b-4a15-92ba-711e0774a188",
+              "name": "from",
+              "value": "={{ String($json.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from   ?? $json.from   ?? $json.telefono??'').trim()}}",
+              "type": "string"
+            },
+            {
+              "id": "3e774b0a-c2dd-4826-a429-1773f060445d",
+              "name": "text",
+              "value": "={{ String($json.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body   ?? $json.messages?.[0]?.text?.body   ?? '' ).replace(/\\r?\\n/g,' ').trim()}}",
+              "type": "string"
+            },
+            {
+              "id": "1b43b5f7-9bfa-4a3e-b0df-2a4cacfb3b5d",
+              "name": "intent_norm",
+              "value": "={{ String($json.intent || $json.text || '')   .normalize('NFD')                 // quita tildes   .replace(/[\\u0300-\\u036f]/g,'')   .replace(/\\r?\\n/g,' ')            // quita saltos de línea   .replace(/\\s+/g,' ')              // colapsa espacios   .trim()                           // recorta extremos   .toLowerCase()                    // minúsculas }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        336
+      ],
+      "id": "0f562e1b-23bd-40cd-ac4c-472e18ad1ee9",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select id as customer_id, razon_social, telefono\nfrom ar.clientes\nwhere right(regexp_replace(telefono, '\\D', '', 'g'), 10)\n      = right(regexp_replace($1, '\\D', '', 'g'), 10)\nlimit 1;\n",
+        "options": {
+          "queryReplacement": "={{ $json.from }} "
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        704,
+        208
+      ],
+      "id": "f7f0829f-d94f-4409-a8d0-7517efb9ac43",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "postgres": {
+          "id": "4iIy0kYbJW78gY99",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ String($json.intent || $json.text || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\r?\\n/g,' ').toLowerCase().trim()}}",
+                    "rightValue": "^\\s*saldo\\s*$",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    },
+                    "id": "13bc56ef-5604-4e34-879f-dc4954b93848"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5d417895-ff0e-4d1f-965b-bdc51f043493",
+                    "leftValue": "={{ String($json.intent || $json.text || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\r?\\n/g,' ').toLowerCase().trim()}}",
+                    "rightValue": "^\\s*vencidas?\\s*$",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f2a6c66b-f87e-4908-b56d-fe07e0bec061",
+                    "leftValue": "={{ String($json.intent || $json.text || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\r?\\n/g,' ').toLowerCase().trim()}}",
+                    "rightValue": "^\\s*ayuda\\s*$",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1120,
+        352
+      ],
+      "id": "a460f8e4-17f0-4c66-8fe2-08b25cc88c94",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH __set AS (\n  SELECT set_config(\n           'request.jwt.claims',\n           json_build_object('tenant_id', c.tenant_id)::text,\n           true\n         )\n  FROM ar.clientes c\n  WHERE c.id = $1     -- $1 = customer_id del JSON de n8n\n  LIMIT 1\n)\nSELECT\n  COALESCE(SUM(v.saldo), 0)::numeric(14,2) AS total_pending,\n  'COP'::text                               AS moneda\nFROM ar.vw_saldo_por_factura v\nWHERE v.cliente_id = $1;\n",
+        "options": {
+          "queryReplacement": "={{ $json.customer_id || $node[\"Execute a SQL query2\"].json.customer_id }}\n"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1504,
+        176
+      ],
+      "id": "7a9276b8-6e49-48a0-b261-79597ad6d1eb",
+      "name": "Execute a SQL query3",
+      "credentials": {
+        "postgres": {
+          "id": "4iIy0kYbJW78gY99",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "956a8d0d-dd91-41ca-a8b5-98d0ed110983",
+              "name": "reply",
+              "value": "={{\n  $json.total_pending != null\n    ? `Tu saldo pendiente es: ${$json.total_pending} ${$json.moneda || 'COP'}.`\n    : 'No encontramos saldo pendiente asociado a tu número.'\n}}\n",
+              "type": "string"
+            },
+            {
+              "id": "c2c0878d-b5ad-48a7-87dc-7027b4b19c87",
+              "name": "to",
+              "value": "={{  (String($json.telefono || $node[\"Execute a SQL query2\"].json.telefono || $json.from || ''))     .replace(/[^\\d]/g, '')     // quitar no dígitos     .replace(/^0+/, '')        // quitar ceros a la izquierda     .replace(/^57?(\\d{10})$/, '57$1')   // asegurar 57 + 10 }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1696,
+        160
+      ],
+      "id": "3330fa2e-b64b-4cac-8e67-b699df966f41",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH __set AS (\n  -- Activa el tenant en ESTA misma ejecución usando el cliente\n  SELECT set_config(\n           'request.jwt.claims',\n           json_build_object('tenant_id', c.tenant_id)::text,\n           true\n         )\n  FROM ar.clientes c\n  WHERE c.id = $1         -- $1 = customer_id\n  LIMIT 1\n),\ndata AS (\n  -- Facturas VENCIDAS con saldo > 0 del cliente\n  SELECT\n    v.serie || '-' || v.numero           AS invoice_number,\n    v.fecha_vencimiento::date            AS vence,\n    v.saldo::numeric(14,2)               AS saldo\n  FROM ar.vw_saldo_por_factura v\n  WHERE v.cliente_id = $1\n    AND v.saldo > 0\n    AND v.fecha_vencimiento < current_date\n  ORDER BY v.fecha_vencimiento ASC, v.numero ASC\n)\nSELECT\n  COALESCE(\n    'Facturas vencidas:' || E'\\n' ||\n    string_agg(\n      '• '|| invoice_number ||\n      ' – vence: '|| to_char(vence,'YYYY-MM-DD') ||\n      ' – saldo: '|| to_char(saldo,'FM9999999990D00'),\n      E'\\n'\n    ),\n    'No encontramos facturas vencidas asociadas.'\n  )                                              AS reply,\n  COALESCE(json_agg(row_to_json(data)), '[]'::json) AS items,\n  COALESCE(SUM(saldo), 0)::numeric(14,2)         AS total_vencido\nFROM data;\n",
+        "options": {
+          "queryReplacement": "={{ $json.customer_id || $node[\"Execute a SQL query2\"].json.customer_id }}\n"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1504,
+        368
+      ],
+      "id": "77b43e70-d1b4-46e1-9a0f-15a08f650d66",
+      "name": "Execute a SQL query4",
+      "credentials": {
+        "postgres": {
+          "id": "4iIy0kYbJW78gY99",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3b5b3b9d-ab00-4e3d-83e2-c07fb1733b1b",
+              "name": "reply",
+              "value": "Escribe: • \"saldo\" para conocer tu saldo pendiente • \"vencidas\" para listar facturas vencidas",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1504,
+        592
+      ],
+      "id": "6a52666c-9346-4608-a8c1-2655df71ffc8",
+      "name": "Edit Fields5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v22.0/776668885539465/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer EAAbbhDuHw30BP73iXUcuMPJmf1yPHeYtxKZAaZBaw763PrBZCOF4hQQppOpR5kPOGHfAKnkX9UEXAMb5LvUe18aFnX7X0jJ0pZAMhJTNmcm1J49zXrF5rwvDuEZC2cyIvkrTKsxw1kxKtWZC7kgC1nPk0HbDXADZBQoLqU4ISBjskmHhSTqt3lZCkjZCxUZCbGkLDZBJSEjq7N5PpGrNSUxVqtRUsNGpSiC8wiFAXMlKZCTd"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "messaging_product",
+              "value": "whatsapp"
+            },
+            {
+              "name": "to",
+              "value": "={{$json.to}}"
+            },
+            {
+              "name": "type",
+              "value": "text"
+            },
+            {
+              "name": "text[preview_url]",
+              "value": "false"
+            },
+            {
+              "name": "text[body]",
+              "value": "={{$json.reply || 'No pude procesar tu solicitud.'}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2208,
+        352
+      ],
+      "id": "1e83f21a-39d0-4b1a-9eb0-d5931cfbbadb",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into ar.historial_cobranzas\n  (tenant_id, cliente_id, factura_id, tipo_gestion, resultado, observaciones)\nvalues\n(\n  (select tenant_id from ar.clientes where id = $1),\n  $1::uuid,\n  null,\n  'WHATSAPP'::ar.tipo_gestion,\n  (case when $2::boolean then 'NO_CONTACTADO' else 'CONTACTADO' end)::ar.resultado_gestion,\n  format('AGENTE intent=%s | WA status=%s | msg_id=%s',\n         $3, $4, $5)\n);\n",
+        "options": {
+          "queryReplacement": "=$1 = {{$node[\"Execute a SQL query2\"].json.customer_id}}   <-- UUID del cliente\n$2 = {{$json.error ? true : false}}\n$3 = {{$('Edit Fields2').item.json.intent_norm || $('Edit Fields2').item.json.intent}}\n$4 = {{ ($json.error && $json.error.message) || 'ok' }}\n$5 = {{ ($json.messages && $json.messages[0] && $json.messages[0].id) || null }}\n"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2480,
+        368
+      ],
+      "id": "b9e0f799-f4d5-4946-9315-3f89db4f886c",
+      "name": "Execute a SQL query5",
+      "credentials": {
+        "postgres": {
+          "id": "4iIy0kYbJW78gY99",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "{\"ok\": true}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2752,
+        368
+      ],
+      "id": "046c9fe3-4f1e-4891-b42a-46aeb39dabf9",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "path": "wa-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -112,
+        320
+      ],
+      "id": "f8558f81-4adf-44bf-958d-8cde3a52c983",
+      "name": "Webhook1",
+      "webhookId": "62a15f48-b93d-48c6-bd76-42307f83543a"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query[\"hub.challenge\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -80,
+        592
+      ],
+      "id": "23420981-3626-486f-9715-5611d7861d58",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wa-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        336
+      ],
+      "id": "9fb916b7-b2f2-4d3c-9ab8-e7004bec1799",
+      "name": "Webhook",
+      "webhookId": "62a15f48-b93d-48c6-bd76-42307f83543a"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fc40b657-2998-44ae-a587-efb162b7ad6d",
+              "name": "reply",
+              "value": "={{$json.reply}}",
+              "type": "string"
+            },
+            {
+              "id": "ca2934af-04c9-4f6b-8dca-372701e44816",
+              "name": "to",
+              "value": "={{\n (String($json.telefono || $node[\"Execute a SQL query2\"].json.telefono || $json.from || ''))\n    .replace(/[^\\d]/g, '')     // quitar no dígitos\n    .replace(/^0+/, '')        // quitar ceros a la izquierda\n    .replace(/^57?(\\d{10})$/, '57$1')   // asegurar 57 + 10\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1696,
+        368
+      ],
+      "id": "5e6255cb-b183-41d7-8414-b4f11a1144e0",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        912,
+        400
+      ],
+      "id": "b994535e-3122-4ed5-b990-554edbb4e710",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7513e228-2fb2-43c3-bbd1-64ec84989839",
+              "leftValue": "={{$json.to}}",
+              "rightValue": "={{  (String($json.telefono || $node[\"Execute a SQL query2\"].json.telefono || $json.from || ''))     .replace(/[^\\d]/g, '')     // quitar no dígitos     .replace(/^0+/, '')        // quitar ceros a la izquierda     .replace(/^57?(\\d{10})$/, '57$1')   // asegurar 57 + 10 }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1968,
+        368
+      ],
+      "id": "88ac8dd4-74c9-43ea-91f2-a83a0e21596b",
+      "name": "If1"
+    }
+  ],
+  "pinData": {
+    "Edit Fields4": [
+      {
+        "json": {
+          "name": "First item",
+          "code": 1
+        }
+      },
+      {
+        "json": {
+          "name": "Second item",
+          "code": 2
+        }
+      }
+    ],
+    "Execute a SQL query3": [
+      {
+        "json": {
+          "name": "First item",
+          "code": 1
+        }
+      },
+      {
+        "json": {
+          "name": "Second item",
+          "code": 2
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query4": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query5": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields5": {
+      "main": [
+        []
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ed9d0be7-5fbe-4867-bf24-a3d2c0c33175",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ca31fbc01fbd83fc99a7b5cd6d705fed10aa259a4a6d2d6ed8c2d766752ec2a6"
+  },
+  "id": "SckNhWnoW1B0k4Nx",
+  "tags": []
+}
